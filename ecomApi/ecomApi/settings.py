@@ -41,7 +41,9 @@ INSTALLED_APPS = [
     #Third party app
     'rest_framework', 
     #Installed app  
-    'apiApp'
+    'apiApp',
+    'ckeditor',
+    'django_filters'
 ]
 
 MIDDLEWARE = [
