@@ -1,81 +1,98 @@
-from rest_framework import viewsets, filters
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
-from rest_framework.exceptions import ValidationError
-from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import Prefetch
-from .models import SubCategory, Category, Product, ProductImage, ProductReview, ProductVariant
-from .serializers import SubCategorySerializer, CategorySerializer, ProductSerializer, ProductImageSerializer
+from rest_framework import viewsets
+from .models import Brand, Category, Subcategory, Product, ProductImage, ProductStock, ProductReview, Cart, CartProduct, Wishlist, Order, OrderProduct, Wallet, WalletTransaction, OrderTracking, UserProfile, UserVerification, ProductOffer, FlashSale
+from .serializers import BrandSerializer, CategorySerializer, SubcategorySerializer, ProductSerializer, ProductImageSerializer, ProductStockSerializer, ProductReviewSerializer, CartSerializer, CartProductSerializer, WishlistSerializer, OrderSerializer, OrderProductSerializer, WalletSerializer, WalletTransactionSerializer, OrderTrackingSerializer, UserProfileSerializer, UserVerificationSerializer, ProductOfferSerializer, FlashSaleSerializer
 
-# SubCategory ViewSet
-class SubCategoryViewSet(viewsets.ModelViewSet):
-    queryset = SubCategory.objects.all()
-    serializer_class = SubCategorySerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
-    filter_backends = (DjangoFilterBackend, filters.OrderingFilter, filters.SearchFilter)
-    search_fields = ['subcategory_name']  # Allow searching subcategory name
-    ordering_fields = ['subcategory_name', 'id']  # Allow ordering by these fields
-    ordering = ['subcategory_name']  # Default ordering
 
-# Category ViewSet
+class BrandViewSet(viewsets.ModelViewSet):
+    queryset = Brand.objects.all()
+    serializer_class = BrandSerializer
+
+
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
-    filter_backends = (DjangoFilterBackend, filters.OrderingFilter, filters.SearchFilter)
-    search_fields = ['category_name']  # Allow searching category name
-    ordering_fields = ['category_name', 'id']  # Allow ordering
-    ordering = ['category_name']  # Default ordering
 
-    # Optimize queryset with prefetch_related
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        return queryset.prefetch_related(
-            Prefetch('subcategories', queryset=SubCategory.objects.all())
-        )
 
-# Product ViewSet
-class ProductViewSet(viewsets.ModelViewSet):
-    queryset = Product.objects.all()
-    serializer_class = ProductSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
-    filter_backends = (DjangoFilterBackend, filters.OrderingFilter, filters.SearchFilter)
-    search_fields = ['name', 'description', 'tags']  # Allow searching products
-    ordering_fields = ['name', 'created_at', 'price']  # Allow ordering
-    ordering = ['name']  # Default ordering
+class SubcategoryViewSet(viewsets.ModelViewSet):
+    queryset = Subcategory.objects.all()
+    serializer_class = SubcategorySerializer
 
-    # Optimize queryset with select_related and prefetch_related
-    def get_queryset(self):
-        queryset = super().get_queryset()
 
-        # Using select_related for single-valued relationships (ForeignKeys)
-        queryset = queryset.select_related('category', 'subcategory')
-
-        # Prefetch related data correctly for multi-valued relationships
-        queryset = queryset.prefetch_related(
-            Prefetch('images', queryset=ProductImage.objects.all()),  # Prefetch product images
-            Prefetch('reviews', queryset=ProductReview.objects.all()),  # Prefetch product reviews
-            Prefetch('variants', queryset=ProductVariant.objects.all())  # Prefetch product variants
-        )
-
-        return queryset
-
-# ProductImage ViewSet
 class ProductImageViewSet(viewsets.ModelViewSet):
     queryset = ProductImage.objects.all()
     serializer_class = ProductImageSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
 
-    # Filter by product ID from query parameters
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        product = self.request.query_params.get('product')
 
-        # Validate product query parameter
-        if product:
-            try:
-                product_id = int(product)
-                queryset = queryset.filter(product__id=product_id)
-            except ValueError:
-                raise ValidationError({"product": "Product ID must be an integer."})
+class ProductViewSet(viewsets.ModelViewSet):
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
 
-        return queryset
+
+class ProductStockViewSet(viewsets.ModelViewSet):
+    queryset = ProductStock.objects.all()
+    serializer_class = ProductStockSerializer
+
+
+class ProductReviewViewSet(viewsets.ModelViewSet):
+    queryset = ProductReview.objects.all()
+    serializer_class = ProductReviewSerializer
+
+
+class CartProductViewSet(viewsets.ModelViewSet):
+    queryset = CartProduct.objects.all()
+    serializer_class = CartProductSerializer
+
+
+class CartViewSet(viewsets.ModelViewSet):
+    queryset = Cart.objects.all()
+    serializer_class = CartSerializer
+
+
+class WishlistViewSet(viewsets.ModelViewSet):
+    queryset = Wishlist.objects.all()
+    serializer_class = WishlistSerializer
+
+
+class OrderProductViewSet(viewsets.ModelViewSet):
+    queryset = OrderProduct.objects.all()
+    serializer_class = OrderProductSerializer
+
+
+class OrderViewSet(viewsets.ModelViewSet):
+    queryset = Order.objects.all()
+    serializer_class = OrderSerializer
+
+
+class WalletTransactionViewSet(viewsets.ModelViewSet):
+    queryset = WalletTransaction.objects.all()
+    serializer_class = WalletTransactionSerializer
+
+
+class OrderTrackingViewSet(viewsets.ModelViewSet):
+    queryset = OrderTracking.objects.all()
+    serializer_class = OrderTrackingSerializer
+
+
+class UserProfileViewSet(viewsets.ModelViewSet):
+    queryset = UserProfile.objects.all()
+    serializer_class = UserProfileSerializer
+
+
+class UserVerificationViewSet(viewsets.ModelViewSet):
+    queryset = UserVerification.objects.all()
+    serializer_class = UserVerificationSerializer
+
+
+class ProductOfferViewSet(viewsets.ModelViewSet):
+    queryset = ProductOffer.objects.all()
+    serializer_class = ProductOfferSerializer
+
+
+class FlashSaleViewSet(viewsets.ModelViewSet):
+    queryset = FlashSale.objects.all()
+    serializer_class = FlashSaleSerializer
+
+
+class WalletViewSet(viewsets.ModelViewSet):
+    queryset = Wallet.objects.all()
+    serializer_class = WalletSerializer

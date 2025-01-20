@@ -1,89 +1,151 @@
 from django.contrib import admin
-from apiApp.models import (
-    SubCategory, Category, Product, ProductImage, ProductVariant, ProductReview, InventoryLog, Wishlist
+from .models import (
+    Brand, Category, Subcategory, ProductImage, Product, ProductStock,
+    ProductReview, Cart, CartProduct, Wishlist, Order, OrderProduct,
+    Wallet, WalletTransaction, OrderTracking, UserProfile, UserVerification,
+    ProductOffer, FlashSale
 )
 
-# SubCategory Admin
-class SubCategoryAdmin(admin.ModelAdmin):
-    list_display = ('subcategory_name', 'slug')
-    search_fields = ('subcategory_name',)
-    list_filter = ('subcategory_name',)
-    prepopulated_fields = {'slug': ('subcategory_name',)}  # Auto-generates the slug
+# Brand Model Admin
+class BrandAdmin(admin.ModelAdmin):
+    list_display = ('title', 'slug', 'meta_title', 'meta_keywords', 'meta_description')
+    search_fields = ('title',)
+    prepopulated_fields = {'slug': ('title',)}
 
+admin.site.register(Brand, BrandAdmin)
 
-# Category Admin
+# Category Model Admin
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ('category_name', 'is_active', 'slug')
-    search_fields = ('category_name',)
-    list_filter = ('is_active',)
-    prepopulated_fields = {'slug': ('category_name',)}
-    filter_horizontal = ('subcategories',)  # Many-to-Many field
+    list_display = ('title', 'slug', 'meta_title', 'meta_keywords', 'meta_description', 'active')
+    search_fields = ('title',)
+    prepopulated_fields = {'slug': ('title',)}
 
-
-# Inline for Product Images
-class ProductImageInline(admin.TabularInline):
-    model = ProductImage
-    extra = 1  # Number of empty forms to display
-
-
-# Inline for Product Variants
-class ProductVariantInline(admin.TabularInline):
-    model = ProductVariant
-    extra = 1
-
-
-# Inline for Product Reviews
-class ProductReviewInline(admin.TabularInline):
-    model = ProductReview
-    extra = 1
-    readonly_fields = ('user', 'rating', 'comment', 'created_at')
-
-
-# Product Admin
-class ProductAdmin(admin.ModelAdmin):
-    list_display = (
-        'name', 'category', 'subcategory', 'price', 'discounted_price',
-        'stock_quantity', 'status', 'views_count', 'is_featured'
-    )
-    search_fields = ('name', 'description', 'tags')
-    list_filter = ('category', 'subcategory', 'status', 'is_featured')
-    readonly_fields = ('created_at', 'updated_at', 'discounted_price')
-    prepopulated_fields = {'slug': ('name',)}
-    inlines = [ProductImageInline, ProductVariantInline, ProductReviewInline]
-
-    fieldsets = (
-        ('General Information', {
-            'fields': ('name', 'category', 'subcategory', 'description', 'specifications', 'tags', 'slug')
-        }),
-        ('Pricing & Stock', {
-            'fields': ('price', 'discount_type', 'discount_value', 'discounted_price', 'stock_quantity', 'status')
-        }),
-        ('Additional Information', {
-            'fields': ('is_featured', 'views_count', 'average_rating', 'review_count', 'available_date', 'currency')
-        }),
-        ('Meta Information', {
-            'fields': ('created_by', 'updated_by', 'created_at', 'updated_at')
-        }),
-    )
-
-
-# Wishlist Admin
-class WishlistAdmin(admin.ModelAdmin):
-    list_display = ('user', 'product', 'added_at')
-    search_fields = ('user__username', 'product__name')
-    list_filter = ('added_at',)
-
-
-# Inventory Log Admin
-class InventoryLogAdmin(admin.ModelAdmin):
-    list_display = ('product', 'change_quantity', 'created_at', 'note')
-    search_fields = ('product__name', 'note')
-    list_filter = ('created_at',)
-
-
-# Registering all Admin Classes
-admin.site.register(SubCategory, SubCategoryAdmin)
 admin.site.register(Category, CategoryAdmin)
+
+# Subcategory Model Admin
+class SubcategoryAdmin(admin.ModelAdmin):
+    list_display = ('title', 'category', 'slug', 'meta_title', 'meta_keywords', 'meta_description', 'active')
+    search_fields = ('title', 'category__title')
+    prepopulated_fields = {'slug': ('title',)}
+
+admin.site.register(Subcategory, SubcategoryAdmin)
+
+# Product Image Model Admin
+class ProductImageAdmin(admin.ModelAdmin):
+    list_display = ('product_variant', 'color', 'size')
+    search_fields = ('product_variant__title',)
+
+admin.site.register(ProductImage, ProductImageAdmin)
+
+# Product Model Admin
+class ProductAdmin(admin.ModelAdmin):
+    list_display = ('title', 'slug', 'mrp', 'price', 'cost_price', 'active', 'category', 'subcategory', 'brand', 'sku')
+    search_fields = ('title', 'category__title', 'subcategory__title', 'brand__title')
+    list_filter = ('active', 'category', 'subcategory', 'brand')
+    prepopulated_fields = {'slug': ('title',)}
+
 admin.site.register(Product, ProductAdmin)
+
+# Product Stock Model Admin
+class ProductStockAdmin(admin.ModelAdmin):
+    list_display = ('product', 'stock_type', 'quantity', 'created_at', 'technician', 'service_provider')
+    list_filter = ('stock_type', 'created_at')
+    search_fields = ('product__title', 'technician__username', 'service_provider__username')
+
+admin.site.register(ProductStock, ProductStockAdmin)
+
+# Product Review Model Admin
+class ProductReviewAdmin(admin.ModelAdmin):
+    list_display = ('product', 'user', 'rating', 'approved')  # Removed created_at
+    list_filter = ('approved', 'rating')
+    search_fields = ('product__title', 'user__username', 'review')
+
+admin.site.register(ProductReview, ProductReviewAdmin)
+
+# Cart Model Admin
+class CartAdmin(admin.ModelAdmin):
+    list_display = ('user',)
+    search_fields = ('user__username',)
+
+admin.site.register(Cart, CartAdmin)
+
+# CartProduct Model Admin
+class CartProductAdmin(admin.ModelAdmin):
+    list_display = ('cart', 'product', 'quantity')
+    search_fields = ('cart__user__username', 'product__title')
+
+admin.site.register(CartProduct, CartProductAdmin)
+
+# Wishlist Model Admin
+class WishlistAdmin(admin.ModelAdmin):
+    list_display = ('user', 'product')
+    search_fields = ('user__username', 'product__title')
+
 admin.site.register(Wishlist, WishlistAdmin)
-admin.site.register(InventoryLog, InventoryLogAdmin)
+
+# Order Model Admin
+class OrderAdmin(admin.ModelAdmin):
+    list_display = ('user', 'order_date', 'status')
+    list_filter = ('status',)
+    search_fields = ('user__username', 'status')
+
+admin.site.register(Order, OrderAdmin)
+
+# OrderProduct Model Admin
+class OrderProductAdmin(admin.ModelAdmin):
+    list_display = ('order', 'product', 'quantity')
+    search_fields = ('order__user__username', 'product__title')
+
+admin.site.register(OrderProduct, OrderProductAdmin)
+
+# Wallet Model Admin
+class WalletAdmin(admin.ModelAdmin):
+    list_display = ('user', 'balance')
+    search_fields = ('user__username',)
+
+admin.site.register(Wallet, WalletAdmin)
+
+# WalletTransaction Model Admin
+class WalletTransactionAdmin(admin.ModelAdmin):
+    list_display = ('wallet', 'amount', 'transaction_type', 'created_at', 'order')
+    list_filter = ('transaction_type', 'created_at')
+    search_fields = ('wallet__user__username', 'order__id')
+
+admin.site.register(WalletTransaction, WalletTransactionAdmin)
+
+# OrderTracking Model Admin
+class OrderTrackingAdmin(admin.ModelAdmin):
+    list_display = ('order', 'status', 'updated_at')
+    list_filter = ('status', 'updated_at')
+    search_fields = ('order__user__username',)
+
+admin.site.register(OrderTracking, OrderTrackingAdmin)
+
+# UserProfile Model Admin
+class UserProfileAdmin(admin.ModelAdmin):
+    list_display = ('user', 'phone_number')
+    search_fields = ('user__username',)
+
+admin.site.register(UserProfile, UserProfileAdmin)
+
+# UserVerification Model Admin
+class UserVerificationAdmin(admin.ModelAdmin):
+    list_display = ('user', 'email_verified', 'mobile_verified', 'verification_code')
+    list_filter = ('email_verified', 'mobile_verified')
+    search_fields = ('user__username',)
+
+admin.site.register(UserVerification, UserVerificationAdmin)
+
+# ProductOffer Model Admin
+class ProductOfferAdmin(admin.ModelAdmin):
+    list_display = ('product', 'discount_percentage', 'start_date', 'end_date')
+    search_fields = ('product__title',)
+
+admin.site.register(ProductOffer, ProductOfferAdmin)
+
+# FlashSale Model Admin
+class FlashSaleAdmin(admin.ModelAdmin):
+    list_display = ('product', 'discount_percentage', 'start_date', 'end_date')
+    search_fields = ('product__title',)
+
+admin.site.register(FlashSale, FlashSaleAdmin)

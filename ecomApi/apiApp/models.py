@@ -1,187 +1,318 @@
 from django.db import models
 from django.utils.text import slugify
-from django.db.models.signals import pre_save
-from ckeditor.fields import RichTextField
-from django.contrib.auth.models import User
-from django.db.models import F
+import uuid
+from django.utils.timezone import now
+from django.contrib.auth import get_user_model
 
-# SubCategory Model
-class SubCategory(models.Model):
-    subcategory_name = models.CharField(max_length=255)
+User = get_user_model()
+
+
+# Brand Model
+class Brand(models.Model):
+    title = models.CharField(max_length=255, unique=True)
+    slug = models.SlugField(max_length=255, unique=True, blank=True)
     description = models.TextField(null=True, blank=True)
-    slug = models.SlugField(max_length=500, null=True, blank=True)
+    thumb = models.ImageField(upload_to='brand_thumbnails/', null=True, blank=True)
+    banner = models.ImageField(upload_to='brand_banners/', null=True, blank=True)
+
+    # SEO fields
+    meta_title = models.CharField(max_length=255, null=True, blank=True)
+    meta_keywords = models.CharField(max_length=255, null=True, blank=True)
+    meta_description = models.TextField(null=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.title)
+        super().save(*args, **kwargs)
 
     def __str__(self):
-        return self.subcategory_name
+        return self.title
 
 
 # Category Model
 class Category(models.Model):
-    category_name = models.CharField(max_length=255)
-    category_icon = models.ImageField(upload_to='categories/icons/')
-    category_image = models.ImageField(upload_to='categories/images/')
+    title = models.CharField(max_length=255, unique=True)
+    slug = models.SlugField(max_length=255, unique=True, blank=True)
     description = models.TextField(null=True, blank=True)
-    subcategories = models.ManyToManyField(SubCategory, related_name='categories')
-    slug = models.SlugField(max_length=500, null=True, blank=True)
-    is_active = models.BooleanField(default=True)
+    thumb = models.ImageField(upload_to='category_thumbnails/', null=True, blank=True)
+    banner = models.ImageField(upload_to='category_banners/', null=True, blank=True)
+    active = models.BooleanField(default=True)
+
+    # SEO fields
+    meta_title = models.CharField(max_length=255, null=True, blank=True)
+    meta_keywords = models.CharField(max_length=255, null=True, blank=True)
+    meta_description = models.TextField(null=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.title)
+        super().save(*args, **kwargs)
 
     def __str__(self):
-        return self.category_name
+        return self.title
+
+
+# Subcategory Model
+class Subcategory(models.Model):
+    title = models.CharField(max_length=255, unique=True)
+    category = models.ForeignKey(Category, related_name='subcategories', on_delete=models.CASCADE)
+    slug = models.SlugField(max_length=255, unique=True, blank=True)
+    description = models.TextField(null=True, blank=True)
+    thumb = models.ImageField(upload_to='subcategory_thumbnails/', null=True, blank=True)
+    banner = models.ImageField(upload_to='subcategory_banners/', null=True, blank=True)
+    active = models.BooleanField(default=True)
+
+    # SEO fields for subcategory
+    meta_title = models.CharField(max_length=255, null=True, blank=True)
+    meta_keywords = models.CharField(max_length=255, null=True, blank=True)
+    meta_description = models.TextField(null=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.title)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.title
+
+
+# Product Image Model (for variant images)
+class ProductImage(models.Model):
+    product_variant = models.ForeignKey('Product', related_name='variant_images', on_delete=models.CASCADE)
+    image = models.ImageField(upload_to='product_variant_images/')
+    color = models.CharField(max_length=100, null=True, blank=True)
+    size = models.CharField(max_length=100, null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.product_variant.title} - {self.color} - {self.size}"
 
 
 # Product Model
-PRODUCT_STATUS = (
-    ('in_stock', 'In Stock'),
-    ('out_of_stock', 'Out of Stock'),
-    ('discontinued', 'Discontinued'),
-)
-
-DISCOUNT_TYPES = (
-    ('percentage', 'Percentage'),
-    ('fixed', 'Fixed'),
-)
-
 class Product(models.Model):
-    name = models.CharField(max_length=255)
-    category = models.ForeignKey(Category, on_delete=models.CASCADE)
-    subcategory = models.ForeignKey(SubCategory, on_delete=models.CASCADE)
-    description = RichTextField()
-    price = models.DecimalField(max_digits=10, decimal_places=2)
-    discount_type = models.CharField(max_length=20, choices=DISCOUNT_TYPES, default='percentage')
-    discount_value = models.DecimalField(max_digits=10, decimal_places=2, default=0.0)
-    discounted_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    stock_quantity = models.IntegerField()
-    status = models.CharField(max_length=20, choices=PRODUCT_STATUS, default='in_stock')
-    sku = models.CharField(max_length=100, unique=True)
-    specifications = models.JSONField(default=dict, help_text="Store product specifications as a dictionary (e.g., {'processor': 'Intel i7', 'ram': '16GB'}).")
-    slug = models.SlugField(max_length=500, null=True, blank=True)
-    tags = models.CharField(max_length=255, null=True, blank=True, help_text="Comma-separated tags for the product.")
-    is_featured = models.BooleanField(default=False)
-    views_count = models.PositiveIntegerField(default=0)
-    average_rating = models.FloatField(default=0.0)
-    review_count = models.PositiveIntegerField(default=0)
-    available_date = models.DateField(null=True, blank=True)
-    currency = models.CharField(max_length=10, default="USD")
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="created_products")
-    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="updated_products")
+    title = models.CharField(max_length=255)
+    slug = models.SlugField(max_length=255, unique=True, blank=True)
+    description = models.TextField(null=True, blank=True)
+    thumb = models.ImageField(upload_to='product_thumbnails/', null=True, blank=True)
+    banner = models.ImageField(upload_to='product_banners/', null=True, blank=True)
 
-    def __str__(self):
-        return self.name
+    # Pricing fields
+    weight = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    unit = models.CharField(max_length=50, null=True, blank=True)  # e.g., "kg", "piece"
+    mrp = models.DecimalField(max_digits=10, decimal_places=2)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    cost_price = models.DecimalField(max_digits=10, decimal_places=2)
+
+    # SEO fields
+    meta_title = models.CharField(max_length=255, null=True, blank=True)
+    meta_keywords = models.CharField(max_length=255, null=True, blank=True)
+    meta_description = models.TextField(null=True, blank=True)
+
+    active = models.BooleanField(default=True)
+
+    # Variant options (color, size)
+    color = models.CharField(max_length=100, null=True, blank=True)
+    size = models.CharField(max_length=100, null=True, blank=True)
+
+    # Foreign key to category and subcategory
+    category = models.ForeignKey(Category, on_delete=models.CASCADE)
+    subcategory = models.ForeignKey(Subcategory, on_delete=models.CASCADE)
+
+    # Foreign key to brand
+    brand = models.ForeignKey(Brand, on_delete=models.CASCADE)
+
+    # SKU Generation
+    sku = models.CharField(max_length=100, unique=True, blank=True)
+
+    # Product images for variant
+    image_gallery = models.ManyToManyField(ProductImage, blank=True)
+
+    # Stock Tracking
+    total_stock = models.PositiveIntegerField(default=0)  # Tracks available stock
+
+    def generate_sku(self):
+        if not self.sku:
+            self.sku = f"{self.brand.id}-{uuid.uuid4().hex[:8]}"  # SKU format: brand-id + unique identifier
+        self.save()
 
     def save(self, *args, **kwargs):
-        if self.discount_type == 'percentage':
-            self.discounted_price = self.price - (self.price * self.discount_value / 100)
-        elif self.discount_type == 'fixed':
-            self.discounted_price = self.price - self.discount_value
-        super(Product, self).save(*args, **kwargs)
-
-
-# ProductImage Model
-class ProductImage(models.Model):
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='images')
-    image = models.ImageField(upload_to='product_images/')
-    alt_text = models.CharField(max_length=255, null=True, blank=True)
-    order = models.PositiveIntegerField(default=0)
+        if not self.slug:
+            self.slug = slugify(self.title)
+        self.generate_sku()
+        super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"Image for {self.product.name}"
+        return self.title
+
+    def update_stock(self, stock_type, quantity):
+        """Update stock based on the stock type."""
+        if stock_type == 'sale':
+            self.total_stock -= quantity
+        elif stock_type in ['purchase', 'restock']:
+            self.total_stock += quantity
+        self.save()
 
 
-# ProductReview Model
+# Product Stock Management
+class ProductStock(models.Model):
+    STOCK_TYPE_CHOICES = [
+        ('purchase', 'Purchase'),
+        ('sale', 'Sale'),
+        ('restock', 'Restock'),
+    ]
+
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='stock_movements')
+    stock_type = models.CharField(max_length=20, choices=STOCK_TYPE_CHOICES)
+    quantity = models.PositiveIntegerField()
+    created_at = models.DateTimeField(default=now)
+    technician = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL, related_name='technician_sales'
+    )  # For technician service provider reports
+    service_provider = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL, related_name='service_provider_commissions'
+    )  # For service provider commissions
+    remarks = models.TextField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.product.title} - {self.stock_type} - {self.quantity}"
+
+    @property
+    def product_sku(self):
+        return self.product.sku
+
+
+# Product Review Model
 class ProductReview(models.Model):
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='reviews')
+    product = models.ForeignKey(Product, related_name='reviews', on_delete=models.CASCADE)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    rating = models.IntegerField()  # e.g., 1-5 stars
-    comment = models.TextField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    helpful_count = models.PositiveIntegerField(default=0)
+    rating = models.PositiveIntegerField(default=5)  # Star rating (1 to 5)
+    review = models.TextField(null=True, blank=True)
+    approved = models.BooleanField(default=False)  # Moderation flag
 
     def __str__(self):
-        return f"{self.user.username}'s review for {self.product.name}"
+        return f"Review for {self.product.title} by {self.user.username}"
 
 
-# ProductVariant Model
-class ProductVariant(models.Model):
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='variants')
-    variant_name = models.CharField(max_length=255)  # e.g., "Color", "Size"
-    variant_value = models.CharField(max_length=255)  # e.g., "Red", "XL"
-    price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    stock_quantity = models.IntegerField(default=0)
+# Cart Model
+class Cart(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    products = models.ManyToManyField(Product, through='CartProduct')
 
     def __str__(self):
-        return f"{self.variant_name}: {self.variant_value} for {self.product.name}"
+        return f"Cart for {self.user.username}"
 
 
-# InventoryLog Model
-class InventoryLog(models.Model):
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='inventory_logs')
-    change_quantity = models.IntegerField()
-    created_at = models.DateTimeField(auto_now_add=True)
-    note = models.CharField(max_length=255, null=True, blank=True)
+# CartProduct Model (through table for Cart and Product)
+class CartProduct(models.Model):
+    cart = models.ForeignKey(Cart, on_delete=models.CASCADE)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField()
 
     def __str__(self):
-        return f"Log for {self.product.name}: {self.change_quantity} items"
+        return f"{self.product.title} in {self.cart.user.username}'s cart"
 
 
 # Wishlist Model
 class Wishlist(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="wishlist")
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="wishlisted_by")
-    added_at = models.DateTimeField(auto_now_add=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
 
     def __str__(self):
-        return f"{self.user.username} - {self.product.name}"
+        return f"Wishlist for {self.user.username}"
 
 
-# Function to create a unique slug
-def create_slug(instance):
-    slug = slugify(instance.name)
+# Order Model
+class Order(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    products = models.ManyToManyField(Product, through='OrderProduct')
+    order_date = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=100)
 
-    if instance.pk: 
-        similar_slugs = Product.objects.filter(slug__startswith=slug).exclude(pk=instance.pk)
-        if similar_slugs.exists():
-            slug = f"{slug}-{similar_slugs.count() + 1}"
-    else:
-        similar_slugs = Product.objects.filter(slug=slug)
-        if similar_slugs.exists():
-            slug = f"{slug}-{similar_slugs.count() + 1}"
-
-    return slug
+    def __str__(self):
+        return f"Order {self.id} by {self.user.username}"
 
 
-# Signal to create a slug before saving the product
-def pre_save_product_receiver(sender, instance, *args, **kwargs):
-    if not instance.slug:
-        instance.slug = create_slug(instance)
-        print(f"Generated slug for {instance.name}: {instance.slug}")  # Debug log to check the slug
+# OrderProduct Model (through table for Order and Product)
+class OrderProduct(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.CASCADE)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField()
 
-pre_save.connect(pre_save_product_receiver, sender=Product)
-
-
-# Signal to create a slug for SubCategory
-def pre_save_subcategory_receiver(sender, instance, *args, **kwargs):
-    if not instance.slug:
-        instance.slug = slugify(instance.subcategory_name)
-
-pre_save.connect(pre_save_subcategory_receiver, sender=SubCategory)
+    def __str__(self):
+        return f"{self.product.title} in Order {self.order.id}"
 
 
-# Signal to create a slug for Category
-def pre_save_category_receiver(sender, instance, *args, **kwargs):
-    if not instance.slug:
-        instance.slug = slugify(instance.category_name)
+# Wallet Model
+class Wallet(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    balance = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
 
-pre_save.connect(pre_save_category_receiver, sender=Category)
+    def __str__(self):
+        return f"Wallet for {self.user.username}"
 
 
-# Product Manager with Search Functionality
-from django.contrib.postgres.search import SearchVector
+# Wallet Transaction Model
+class WalletTransaction(models.Model):
+    wallet = models.ForeignKey(Wallet, on_delete=models.CASCADE)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    transaction_type = models.CharField(max_length=50)  # Deposit, Withdrawal, etc.
+    created_at = models.DateTimeField(auto_now_add=True)
+    order = models.ForeignKey(Order, null=True, blank=True, on_delete=models.SET_NULL)
 
-class ProductManager(models.Manager):
-    def search(self, query):
-        return self.annotate(search=SearchVector('name', 'description', 'tags')).filter(search=query)
+    def __str__(self):
+        return f"{self.transaction_type} of {self.amount} for {self.wallet.user.username}"
 
-Product.objects = ProductManager()
+
+# Order Tracking Model
+class OrderTracking(models.Model):
+    order = models.ForeignKey(Order, related_name='tracking', on_delete=models.CASCADE)
+    status = models.CharField(max_length=100)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Order {self.order.id} - {self.status} at {self.updated_at}"
+
+
+# User Profile Model
+class UserProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    phone_number = models.CharField(max_length=15, null=True, blank=True)
+    profile_picture = models.ImageField(upload_to='user_profiles/', null=True, blank=True)
+
+    def __str__(self):
+        return f"Profile of {self.user.username}"
+
+
+# User Authentication (Email and Mobile Verification)
+class UserVerification(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    email_verified = models.BooleanField(default=False)
+    mobile_verified = models.BooleanField(default=False)
+    verification_code = models.CharField(max_length=6, null=True, blank=True)
+
+    def __str__(self):
+        return f"Verification status for {self.user.username}"
+
+
+# Product Offer Model
+class ProductOffer(models.Model):
+    product = models.ForeignKey(Product, related_name='offers', on_delete=models.CASCADE)
+    discount_percentage = models.PositiveIntegerField()
+    start_date = models.DateTimeField()
+    end_date = models.DateTimeField()
+
+    def __str__(self):
+        return f"Offer for {self.product.title} - {self.discount_percentage}% off"
+
+
+# Flash Sales Model
+class FlashSale(models.Model):
+    product = models.ForeignKey(Product, related_name='flash_sales', on_delete=models.CASCADE)
+    discount_percentage = models.PositiveIntegerField()
+    start_date = models.DateTimeField()
+    end_date = models.DateTimeField()
+
+    def __str__(self):
+        return f"Flash Sale for {self.product.title} - {self.discount_percentage}% off"

@@ -1,57 +1,123 @@
 from rest_framework import serializers
-from .models import SubCategory, Category, Product, ProductImage, ProductVariant, ProductReview
+from .models import Brand, Category, Subcategory, Product, ProductImage, ProductStock, ProductReview, Cart, CartProduct, Wishlist, Order, OrderProduct, Wallet, WalletTransaction, OrderTracking, UserProfile, UserVerification, ProductOffer, FlashSale
 
-# SubCategory Serializer
-class SubCategorySerializer(serializers.ModelSerializer):
+
+class BrandSerializer(serializers.ModelSerializer):
     class Meta:
-        model = SubCategory
-        fields = ['id', 'subcategory_name', 'description', 'slug']
+        model = Brand
+        fields = '__all__'
 
-# Category Serializer
+
 class CategorySerializer(serializers.ModelSerializer):
-    subcategories = SubCategorySerializer(many=True, read_only=True)
-
     class Meta:
         model = Category
-        fields = ['id', 'category_name', 'category_icon', 'category_image', 'description', 'subcategories', 'slug', 'is_active']
+        fields = '__all__'
 
-# ProductImage Serializer
+
+class SubcategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Subcategory
+        fields = '__all__'
+
+
 class ProductImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductImage
-        fields = ['id', 'image', 'alt_text', 'order']
+        fields = '__all__'
 
-# ProductReview Serializer
-class ProductReviewSerializer(serializers.ModelSerializer):
-    user = serializers.StringRelatedField()
 
-    class Meta:
-        model = ProductReview
-        fields = ['id', 'user', 'rating', 'comment', 'created_at', 'helpful_count']
-
-# ProductVariant Serializer
-class ProductVariantSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ProductVariant
-        fields = ['id', 'variant_name', 'variant_value', 'price', 'stock_quantity']
-
-# Product Serializer
 class ProductSerializer(serializers.ModelSerializer):
-    # Optional related data, nullable if not found
-    category = CategorySerializer(allow_null=True)
-    subcategory = SubCategorySerializer(allow_null=True)
+    image_gallery = ProductImageSerializer(many=True)
     
-    # For read-only fields (images, reviews, variants)
-    images = ProductImageSerializer(many=True, read_only=True)
-    reviews = ProductReviewSerializer(many=True, read_only=True)
-    variants = ProductVariantSerializer(many=True, read_only=True)
-
     class Meta:
         model = Product
-        fields = [
-            'id', 'name', 'category', 'subcategory', 'description', 'price', 'discount_type', 
-            'discount_value', 'discounted_price', 'stock_quantity', 'status', 'sku', 
-            'specifications', 'slug', 'tags', 'is_featured', 'views_count', 'average_rating', 
-            'review_count', 'available_date', 'currency', 'is_active', 'created_at', 
-            'updated_at', 'created_by', 'updated_by', 'images', 'reviews', 'variants'
-        ]
+        fields = '__all__'
+
+
+class ProductStockSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductStock
+        fields = '__all__'
+
+
+class ProductReviewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductReview
+        fields = '__all__'
+
+
+class CartProductSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CartProduct
+        fields = '__all__'
+
+
+class CartSerializer(serializers.ModelSerializer):
+    products = CartProductSerializer(many=True)
+    
+    class Meta:
+        model = Cart
+        fields = '__all__'
+
+
+class WishlistSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Wishlist
+        fields = '__all__'
+
+
+class OrderProductSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OrderProduct
+        fields = '__all__'
+
+
+class OrderSerializer(serializers.ModelSerializer):
+    products = OrderProductSerializer(many=True)
+    
+    class Meta:
+        model = Order
+        fields = '__all__'
+
+
+class WalletTransactionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WalletTransaction
+        fields = '__all__'
+
+
+class OrderTrackingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OrderTracking
+        fields = '__all__'
+
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserProfile
+        fields = '__all__'
+
+
+class UserVerificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserVerification
+        fields = '__all__'
+
+
+class ProductOfferSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductOffer
+        fields = '__all__'
+
+
+class FlashSaleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FlashSale
+        fields = '__all__'
+
+
+class WalletSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Wallet
+        fields = '__all__'
+
